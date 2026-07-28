@@ -1,0 +1,522 @@
+<title>HakkaGo 每月排行 · 禮品分配抽籤</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    /* 客家花布 × 油桐花 調色盤 */
+    --paper:#FBF6EE;          /* 溫潤米紙底 */
+    --paper-2:#F3EADA;        /* 次層底色 */
+    --card:#FFFFFF;
+    --ink:#2A2320;            /* 暖墨黑 */
+    --ink-soft:#6B5F55;       /* 次要文字 */
+    --line:#E4D8C6;           /* 分隔線（帶暖偏） */
+    --peony:#C6303B;          /* 客家牡丹紅（主色） */
+    --peony-deep:#8E1F3A;     /* 深牡丹 */
+    --jade:#2F7D6E;           /* 藍染青 */
+    --gold:#C8952B;           /* 慶典金 */
+    --plum:#7A4E8C;           /* 手機夾片用 */
+    --shadow:0 1px 2px rgba(42,35,32,.06),0 8px 24px rgba(42,35,32,.08);
+    --shadow-lg:0 12px 40px rgba(142,31,58,.18);
+    --radius:14px;
+    /* 禮品四色（語意色，與主色分離） */
+    --g-led:var(--gold);
+    --g-clip:var(--plum);
+    --g-ipass:var(--jade);
+    --g-key:var(--peony);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#1C1614; --paper-2:#241C19; --card:#2A211D;
+      --ink:#F4ECE1; --ink-soft:#B7A899; --line:#3C302A;
+      --peony:#E8636B; --peony-deep:#C6303B; --jade:#5FB3A2;
+      --gold:#E0B457; --plum:#B384C4;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+      --shadow-lg:0 12px 40px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#FBF6EE; --paper-2:#F3EADA; --card:#FFFFFF;
+    --ink:#2A2320; --ink-soft:#6B5F55; --line:#E4D8C6;
+    --peony:#C6303B; --peony-deep:#8E1F3A; --jade:#2F7D6E; --gold:#C8952B; --plum:#7A4E8C;
+    --shadow:0 1px 2px rgba(42,35,32,.06),0 8px 24px rgba(42,35,32,.08);
+    --shadow-lg:0 12px 40px rgba(142,31,58,.18);
+  }
+  :root[data-theme="dark"]{
+    --paper:#1C1614; --paper-2:#241C19; --card:#2A211D;
+    --ink:#F4ECE1; --ink-soft:#B7A899; --line:#3C302A;
+    --peony:#E8636B; --peony-deep:#C6303B; --jade:#5FB3A2; --gold:#E0B457; --plum:#B384C4;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+    --shadow-lg:0 12px 40px rgba(0,0,0,.5);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0}
+  .wrap{
+    font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC","Helvetica Neue",sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb, var(--peony) 8%, transparent), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, color-mix(in srgb, var(--jade) 10%, transparent), transparent 55%),
+      var(--paper);
+    min-height:100vh;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .container{max-width:1080px;margin:0 auto;padding:28px 22px 64px}
+
+  /* ---- Header ---- */
+  header.masthead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .blossom{flex:none;width:46px;height:46px}
+  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--peony);font-weight:700;margin:0 0 2px}
+  h1{font-size:26px;margin:0;letter-spacing:.01em;font-weight:800;text-wrap:balance}
+  .sub{color:var(--ink-soft);font-size:13.5px;margin:2px 0 0}
+  .theme-btn{flex:none;border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+    border-radius:999px;padding:7px 14px;font:inherit;font-size:13px;cursor:pointer;box-shadow:var(--shadow)}
+  .theme-btn:hover{color:var(--ink)}
+
+  /* ---- Panels ---- */
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  @media (max-width:820px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+  .panel h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px;font-weight:700}
+
+  label.field{display:block;margin-bottom:14px}
+  label.field > span{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:6px;font-weight:600}
+  select,textarea,input[type=text]{
+    width:100%;font:inherit;color:var(--ink);background:var(--paper-2);
+    border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+  textarea{min-height:186px;resize:vertical;line-height:1.9;font-variant-numeric:tabular-nums}
+  select:focus,textarea:focus,input:focus{outline:2px solid color-mix(in srgb,var(--peony) 55%,transparent);outline-offset:1px;border-color:transparent}
+  .row-mini{display:flex;gap:8px}
+  .btn-mini{flex:1;border:1px dashed var(--line);background:transparent;color:var(--ink-soft);
+    border-radius:9px;padding:7px 8px;font:inherit;font-size:12.5px;cursor:pointer}
+  .btn-mini:hover{border-color:var(--peony);color:var(--peony)}
+
+  /* ---- Gift quota editor ---- */
+  .quota{display:flex;flex-direction:column;gap:9px;margin-top:2px}
+  .qrow{display:grid;grid-template-columns:14px 1fr 62px;align-items:center;gap:10px}
+  .swatch{width:14px;height:14px;border-radius:4px}
+  .qname{font-size:13.5px;font-weight:600}
+  .qrow input{padding:6px 8px;text-align:center;font-variant-numeric:tabular-nums}
+  .qtotal{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:12px;border-top:1px solid var(--line);font-size:13px}
+  .qtotal .n{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums}
+  .qtotal .n.bad{color:var(--peony)}
+  .qtotal .n.ok{color:var(--jade)}
+
+  /* ---- Draw button ---- */
+  .draw-btn{width:100%;margin-top:6px;border:0;border-radius:12px;cursor:pointer;
+    background:linear-gradient(135deg,var(--peony),var(--peony-deep));color:#fff;
+    font:inherit;font-size:17px;font-weight:800;letter-spacing:.06em;padding:14px;
+    box-shadow:var(--shadow-lg);transition:transform .08s ease,filter .15s ease}
+  .draw-btn:hover{filter:brightness(1.05)}
+  .draw-btn:active{transform:translateY(1px)}
+  .draw-btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+  .hint{font-size:12px;color:var(--ink-soft);margin:10px 2px 0;text-align:center;min-height:16px}
+  .hint.err{color:var(--peony);font-weight:600}
+
+  /* ---- Stage ---- */
+  .stage-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .stage-title{font-size:15px;font-weight:800}
+  .stage-meta{font-size:12.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .cards{display:grid;grid-template-columns:1fr;gap:10px}
+  @media (min-width:640px){.cards.two{grid-template-columns:repeat(2,1fr)}}
+  .card{position:relative;background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+    padding:12px 16px;display:flex;align-items:center;gap:14px;min-height:60px;overflow:hidden;flex-wrap:wrap;row-gap:8px}
+  .card .rankpill{flex:none;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    background:var(--card);border:1px solid var(--line);font-weight:800;font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums}
+  .card .who{flex:1 1 auto;min-width:0;overflow:hidden}
+  .card .who .name{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .who .lbl{font-size:11px;color:var(--ink-soft);letter-spacing:.08em}
+  .gift{flex:none;margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:6px 13px;border-radius:999px;
+    font-size:13.5px;font-weight:700;color:#fff;white-space:nowrap;
+    box-shadow:0 2px 8px rgba(0,0,0,.12);transition:opacity .2s}
+  .gift .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.85)}
+  .card.rolling .gift{opacity:.85}
+  .card.settled{animation:pop .38s cubic-bezier(.2,1.4,.5,1) both}
+  @keyframes pop{0%{transform:scale(.9)}100%{transform:scale(1)}}
+  .card .accent{position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--peony);opacity:.0;transition:opacity .3s}
+  .card.settled .accent{opacity:1}
+
+  .empty{color:var(--ink-soft);text-align:center;padding:40px 10px;font-size:14px}
+
+  /* ---- Results toolbar ---- */
+  .toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}
+  .tool{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;
+    padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;box-shadow:var(--shadow)}
+  .tool:hover{border-color:var(--peony);color:var(--peony)}
+  .tool.primary{background:var(--jade);border-color:var(--jade);color:#fff}
+  .tool.primary:hover{filter:brightness(1.05);color:#fff}
+  .tool:disabled{opacity:.4;cursor:not-allowed}
+  .stamp{font-size:11.5px;color:var(--ink-soft);margin-top:12px;font-variant-numeric:tabular-nums}
+
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft)}
+  .legend .swatch{width:11px;height:11px;border-radius:3px}
+
+  .note{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.7}
+  .note code{background:var(--paper-2);padding:1px 5px;border-radius:4px;font-size:11.5px}
+
+  /* confetti canvas */
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:50}
+  @media (prefers-reduced-motion:reduce){
+    .card.settled{animation:none}
+  }
+</style>
+
+<div class="wrap">
+  <canvas id="fx"></canvas>
+  <div class="container">
+
+    <header class="masthead">
+      <div class="brand">
+        <svg class="blossom" viewBox="0 0 100 100" aria-hidden="true">
+          <g>
+            <!-- 油桐花：五瓣 -->
+            <g fill="currentColor" style="color:var(--peony)">
+              <ellipse cx="50" cy="24" rx="13" ry="19"/>
+              <ellipse cx="50" cy="24" rx="13" ry="19" transform="rotate(72 50 50)"/>
+              <ellipse cx="50" cy="24" rx="13" ry="19" transform="rotate(144 50 50)"/>
+              <ellipse cx="50" cy="24" rx="13" ry="19" transform="rotate(216 50 50)"/>
+              <ellipse cx="50" cy="24" rx="13" ry="19" transform="rotate(288 50 50)"/>
+            </g>
+            <circle cx="50" cy="50" r="9" style="fill:var(--gold)"/>
+          </g>
+        </svg>
+        <div>
+          <p class="eyebrow">哈客網路學院 · HakkaGo 每月排行</p>
+          <h1>禮品分配抽籤</h1>
+          <p class="sub">前 10 名得獎者已由積分決定，本工具負責「隨機分配」當月 10 份禮品，公平、可現場投影。</p>
+        </div>
+      </div>
+      <button class="theme-btn" id="themeToggle" type="button">◑ 深／淺色</button>
+    </header>
+
+    <div class="grid">
+      <!-- 控制台 -->
+      <section class="panel" aria-label="設定">
+        <h2>1 · 選擇場次</h2>
+        <label class="field">
+          <span>活動月份（自動帶入禮品配額）</span>
+          <select id="monthSel"></select>
+        </label>
+
+        <h2 style="margin-top:6px">2 · 得獎名單</h2>
+        <label class="field">
+          <span>依名次貼上得獎者，每行一位（名次 1 → 10）</span>
+          <textarea id="names" placeholder="第1名 王小明&#10;第2名 陳__&#10;……（共 10 位，可貼帳號或暱稱）"></textarea>
+        </label>
+        <div class="row-mini">
+          <button class="btn-mini" id="fillDemo" type="button">填入示範名單</button>
+          <button class="btn-mini" id="clearNames" type="button">清空</button>
+        </div>
+
+        <h2 style="margin-top:18px">3 · 禮品配額</h2>
+        <div class="quota" id="quota"></div>
+        <div class="qtotal">
+          <span>禮品總數 / 得獎人數</span>
+          <span><span class="n" id="qsum">0</span> / <span class="n" id="nsum">0</span></span>
+        </div>
+
+        <button class="draw-btn" id="drawBtn" type="button" style="margin-top:16px">🎲 開始抽籤</button>
+        <p class="hint" id="hint">貼上名單後即可抽籤</p>
+      </section>
+
+      <!-- 抽籤舞台 -->
+      <section class="panel" aria-label="抽籤結果">
+        <div class="stage-head">
+          <span class="stage-title" id="stageTitle">抽籤舞台</span>
+          <span class="stage-meta" id="stageMeta"></span>
+        </div>
+        <div class="cards" id="cards">
+          <div class="empty" id="emptyState">尚未抽籤 — 於左側完成設定後按「開始抽籤」。</div>
+        </div>
+
+        <div class="toolbar" id="toolbar" hidden>
+          <button class="tool primary" id="redraw" type="button">↻ 重新抽籤</button>
+          <button class="tool" id="copyTxt" type="button">複製文字結果</button>
+          <button class="tool" id="dlCsv" type="button">下載 CSV</button>
+        </div>
+        <div class="stamp" id="stamp" hidden></div>
+
+        <div class="legend" id="legend"></div>
+        <p class="note">
+          抽籤採 Fisher–Yates 洗牌演算法（優先使用瀏覽器 <code>crypto</code> 亂數），每次結果獨立且不可預測。
+          名次順序僅供辨識，禮品分配與名次無關。建議現場投影並保留 CSV 作為存證。
+        </p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- 計畫書配額（表 貳-7） ---------- */
+  // 品項順序與配額依計畫書表 貳-7／docx 表 肆-5：IP人物鑰匙圈 | LED小燈箱 | 手機夾片 | iPASS一卡通
+  var GIFTS=[
+    {key:"key",  name:"IP人物鑰匙圈",   color:"var(--g-key)"},
+    {key:"led",  name:"LED 小燈箱",     color:"var(--g-led)"},
+    {key:"clip", name:"手機夾片",       color:"var(--g-clip)"},
+    {key:"ipass",name:"iPASS 一卡通",   color:"var(--g-ipass)"}
+  ];
+  // 20 個月；首月與末月：夾片0、鑰匙圈2，其餘 5/1/3/1
+  var MONTHS=[];
+  (function(){
+    // 民國115/07（2026/07）起，至民國117/02（2028/02）止，共 20 個月
+    var seq=[[2026,7],[2026,8],[2026,9],[2026,10],[2026,11],[2026,12],
+             [2027,1],[2027,2],[2027,3],[2027,4],[2027,5],[2027,6],[2027,7],[2027,8],[2027,9],[2027,10],[2027,11],[2027,12],
+             [2028,1],[2028,2]];
+    for(var i=0;i<seq.length;i++){
+      var y=seq[i][0], m=seq[i][1];
+      var roc=y-1911;
+      var first=(i===0), last=(i===seq.length-1);
+      MONTHS.push({
+        idx:i+1,
+        label:"第"+(i+1)+"場 · "+roc+"/"+String(m).padStart(2,"0")+"（"+y+"/"+String(m).padStart(2,"0")+"）",
+        q:{key:5, led:(first||last)?0:1, clip:3, ipass:(first||last)?2:1}
+      });
+    }
+  })();
+
+  var $=function(s){return document.querySelector(s);};
+
+  /* ---------- 建立月份選單 ---------- */
+  var monthSel=$("#monthSel");
+  MONTHS.forEach(function(mo){
+    var o=document.createElement("option");
+    o.value=mo.idx-1; o.textContent=mo.label; monthSel.appendChild(o);
+  });
+
+  /* ---------- 配額編輯器 ---------- */
+  var quotaBox=$("#quota"), qInputs={};
+  GIFTS.forEach(function(g){
+    var row=document.createElement("div"); row.className="qrow";
+    var sw=document.createElement("span"); sw.className="swatch"; sw.style.background=g.color;
+    var nm=document.createElement("span"); nm.className="qname"; nm.textContent=g.name;
+    var inp=document.createElement("input"); inp.type="text"; inp.inputMode="numeric"; inp.value="0";
+    inp.addEventListener("input",refreshTotals);
+    qInputs[g.key]=inp;
+    row.appendChild(sw); row.appendChild(nm); row.appendChild(inp);
+    quotaBox.appendChild(row);
+  });
+
+  function applyMonth(){
+    var mo=MONTHS[+monthSel.value];
+    GIFTS.forEach(function(g){ qInputs[g.key].value=mo.q[g.key]; });
+    refreshTotals();
+  }
+
+  /* ---------- Legend ---------- */
+  (function(){
+    var lg=$("#legend");
+    GIFTS.forEach(function(g){
+      var it=document.createElement("span"); it.className="item";
+      var sw=document.createElement("span"); sw.className="swatch"; sw.style.background=g.color;
+      it.appendChild(sw); it.appendChild(document.createTextNode(g.name));
+      lg.appendChild(it);
+    });
+  })();
+
+  /* ---------- 名單解析 ---------- */
+  function getNames(){
+    return $("#names").value.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
+  }
+  function getQuota(){
+    var q={}, sum=0;
+    GIFTS.forEach(function(g){
+      var v=parseInt(qInputs[g.key].value,10); if(isNaN(v)||v<0)v=0;
+      q[g.key]=v; sum+=v;
+    });
+    return {q:q,sum:sum};
+  }
+  function refreshTotals(){
+    var names=getNames(), qq=getQuota();
+    $("#qsum").textContent=qq.sum;
+    $("#nsum").textContent=names.length;
+    var match=(qq.sum===names.length && names.length>0);
+    $("#qsum").className="n "+(match?"ok":"bad");
+    $("#nsum").className="n "+(match?"ok":"bad");
+    var hint=$("#hint");
+    if(names.length===0){ setHint("貼上名單後即可抽籤",false); }
+    else if(qq.sum!==names.length){ setHint("禮品總數("+qq.sum+")需等於得獎人數("+names.length+")",true); }
+    else { setHint("已就緒 — "+names.length+" 位得獎者，"+qq.sum+" 份禮品",false); }
+    $("#drawBtn").disabled=!match;
+    return match;
+  }
+  function setHint(t,err){ var h=$("#hint"); h.textContent=t; h.className="hint"+(err?" err":""); }
+
+  /* ---------- 亂數洗牌（Fisher–Yates + crypto） ---------- */
+  function rnd(n){
+    if(window.crypto && crypto.getRandomValues){
+      var max=Math.floor(0xFFFFFFFF/n)*n, a=new Uint32Array(1);
+      do{ crypto.getRandomValues(a); }while(a[0]>=max);
+      return a[0]%n;
+    }
+    return Math.floor(Math.random()*n);
+  }
+  function shuffle(arr){
+    for(var i=arr.length-1;i>0;i--){ var j=rnd(i+1); var t=arr[i];arr[i]=arr[j];arr[j]=t; }
+    return arr;
+  }
+
+  /* ---------- 抽籤 ---------- */
+  var lastResult=null, lastStamp="", rolling=false;
+
+  function buildPool(q){
+    var pool=[];
+    GIFTS.forEach(function(g){ for(var k=0;k<q[g.key];k++) pool.push(g); });
+    return pool;
+  }
+
+  function draw(){
+    if(rolling) return;
+    if(!refreshTotals()) return;
+    var names=getNames(), qq=getQuota();
+    var pool=shuffle(buildPool(qq.q));       // 洗牌禮品
+    var result=names.map(function(nm,i){ return {rank:i+1, name:nm, gift:pool[i]}; });
+    lastResult=result;
+    lastStamp=stampNow();
+    renderCards(result,true);
+  }
+
+  function stampNow(){
+    var d=new Date();
+    function p(n){return String(n).padStart(2,"0");}
+    return d.getFullYear()+"/"+p(d.getMonth()+1)+"/"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes())+":"+p(d.getSeconds());
+  }
+
+  function giftChip(g){
+    return '<span class="gift" style="background:'+g.color+'"><span class="dot"></span>'+g.name+'</span>';
+  }
+
+  var cardsBox=$("#cards");
+  function renderCards(result, animate){
+    $("#emptyState")&&($("#emptyState").style.display="none");
+    var mo=MONTHS[+monthSel.value];
+    $("#stageTitle").textContent="抽籤結果 · "+mo.label.split("·")[1].trim();
+    $("#stageMeta").textContent=result.length+" 位得獎者";
+    cardsBox.innerHTML="";
+    var cards=[];
+    result.forEach(function(r){
+      var c=document.createElement("div"); c.className="card";
+      c.innerHTML='<span class="accent"></span>'
+        +'<span class="rankpill">'+r.rank+'</span>'
+        +'<span class="who"><span class="lbl">第 '+r.rank+' 名</span><span class="name">'+escapeHtml(r.name)+'</span></span>'
+        +'<span class="giftslot">'+giftChip(r.gift)+'</span>';
+      cardsBox.appendChild(c); cards.push(c);
+    });
+    showToolbar();
+
+    var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+    if(!animate||reduce){ cards.forEach(function(c){c.classList.add("settled");}); if(!reduce)confetti(); return; }
+
+    // slot-machine 逐張定格
+    rolling=true; $("#drawBtn").disabled=true; $("#redraw").disabled=true;
+    var pool=result.map(function(r){return r.gift;});
+    var timers=[];
+    cards.forEach(function(c,i){
+      c.classList.add("rolling");
+      var slot=c.querySelector(".giftslot");
+      var iv=setInterval(function(){
+        slot.innerHTML=giftChip(GIFTS[rnd(GIFTS.length)]);
+      },70);
+      timers.push(iv);
+      setTimeout(function(){
+        clearInterval(iv);
+        slot.innerHTML=giftChip(result[i].gift);
+        c.classList.remove("rolling"); c.classList.add("settled");
+        if(i===cards.length-1){ rolling=false; $("#redraw").disabled=false; refreshTotals(); confetti(); }
+      }, 650+i*260);
+    });
+  }
+
+  function escapeHtml(s){return s.replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];});}
+
+  function showToolbar(){
+    $("#toolbar").hidden=false;
+    var st=$("#stamp"); st.hidden=false; st.textContent="抽籤時間："+lastStamp;
+  }
+
+  /* ---------- 匯出 ---------- */
+  function resultText(){
+    var mo=MONTHS[+monthSel.value];
+    var lines=["【HakkaGo 每月排行 · 禮品分配抽籤】",mo.label,"抽籤時間："+lastStamp,""];
+    lastResult.forEach(function(r){ lines.push("第 "+r.rank+" 名　"+r.name+"　→　"+r.gift.name); });
+    return lines.join("\n");
+  }
+  function copyTxt(){
+    var t=resultText();
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){flash($("#copyTxt"),"已複製 ✓");},function(){fallbackCopy(t);});
+    }else fallbackCopy(t);
+  }
+  function fallbackCopy(t){
+    var ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{document.execCommand("copy");flash($("#copyTxt"),"已複製 ✓");}catch(e){}
+    document.body.removeChild(ta);
+  }
+  function flash(btn,txt){var o=btn.textContent;btn.textContent=txt;setTimeout(function(){btn.textContent=o;},1400);}
+  function dlCsv(){
+    var mo=MONTHS[+monthSel.value];
+    var rows=[["名次","得獎者","禮品","場次","抽籤時間"]];
+    lastResult.forEach(function(r){ rows.push([r.rank,r.name,r.gift.name,mo.label,lastStamp]); });
+    var csv=rows.map(function(row){return row.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(",");}).join("\r\n");
+    var blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+    var url=URL.createObjectURL(blob), a=document.createElement("a");
+    a.href=url; a.download="HakkaGo禮品抽籤_第"+mo.idx+"場.csv"; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  /* ---------- confetti ---------- */
+  var cvs=$("#fx"), ctx=cvs.getContext("2d"), parts=[], raf=null;
+  function resize(){cvs.width=innerWidth;cvs.height=innerHeight;}
+  addEventListener("resize",resize); resize();
+  function confetti(){
+    var reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion:reduce)").matches;
+    if(reduce)return;
+    var colors=["#C6303B","#C8952B","#2F7D6E","#7A4E8C","#8E1F3A"];
+    for(var i=0;i<140;i++){
+      parts.push({x:innerWidth/2+(Math.random()-.5)*260, y:innerHeight*0.32,
+        vx:(Math.random()-.5)*9, vy:Math.random()*-11-4, g:.32,
+        s:5+Math.random()*7, r:Math.random()*6, vr:(Math.random()-.5)*.4,
+        c:colors[(Math.random()*colors.length)|0], life:0});
+    }
+    if(!raf)tick();
+  }
+  function tick(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    for(var i=parts.length-1;i>=0;i--){
+      var p=parts[i]; p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.r+=p.vr; p.life++;
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*.6);ctx.restore();
+      if(p.y>cvs.height+40||p.life>240)parts.splice(i,1);
+    }
+    if(parts.length){raf=requestAnimationFrame(tick);}else{ctx.clearRect(0,0,cvs.width,cvs.height);raf=null;}
+  }
+
+  /* ---------- 事件 ---------- */
+  monthSel.addEventListener("change",applyMonth);
+  $("#names").addEventListener("input",refreshTotals);
+  $("#drawBtn").addEventListener("click",draw);
+  $("#redraw").addEventListener("click",draw);
+  $("#copyTxt").addEventListener("click",copyTxt);
+  $("#dlCsv").addEventListener("click",dlCsv);
+  $("#clearNames").addEventListener("click",function(){$("#names").value="";refreshTotals();$("#names").focus();});
+  $("#fillDemo").addEventListener("click",function(){
+    var demo=["王小明","陳美玲","林志豪","黃淑芬","張家瑋","李承翰","吳品妤","劉建宏","蔡宜庭","徐若瑄"];
+    $("#names").value=demo.join("\n");refreshTotals();
+  });
+
+  /* ---------- 主題切換 ---------- */
+  var root=document.documentElement;
+  $("#themeToggle").addEventListener("click",function(){
+    var cur=root.getAttribute("data-theme");
+    if(!cur){cur=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";}
+    root.setAttribute("data-theme",cur==="dark"?"light":"dark");
+  });
+
+  /* ---------- 初始 ---------- */
+  applyMonth();
+})();
+</script>
