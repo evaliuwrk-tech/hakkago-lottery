@@ -171,8 +171,13 @@
   .import-err{color:var(--peony);font-weight:600}
 
   /* 螢幕錄影 */
-  .recbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:10px 13px;
+  .recbar{display:flex;flex-direction:column;gap:9px;margin:0 0 14px;padding:11px 13px;
     background:var(--paper-2);border:1px solid var(--line);border-radius:10px}
+  .rec-mode{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:12.5px}
+  .rec-mode-lbl{font-weight:700;color:var(--ink)}
+  .rec-mode label{display:inline-flex;align-items:center;gap:5px;cursor:pointer;color:var(--ink-soft)}
+  .rec-mode input{width:auto;accent-color:var(--peony)}
+  .rec-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .rec-btn{border:1px solid var(--peony);background:transparent;color:var(--peony);border-radius:8px;
     padding:7px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
   .rec-btn:hover{background:color-mix(in srgb,var(--peony) 10%,transparent)}
@@ -181,10 +186,20 @@
   .rec-btn.live .rec-dot{animation:blink 1s steps(2,start) infinite}
   @keyframes blink{50%{opacity:.2}}
   .rec-audio{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
-  .rec-status{margin-left:auto;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
+  .rec-audio input{width:auto;accent-color:var(--peony)}
+  .rec-status{font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
   .rec-status.live{color:var(--peony);font-weight:700}
   #recPreview{width:100%;border-radius:10px;margin-bottom:14px;background:#000;max-height:340px;display:block}
+  #stageCapture{background:var(--card);border-radius:12px}
   @media (prefers-reduced-motion:reduce){.rec-btn.live .rec-dot{animation:none}}
+
+  /* 自訂矩形選取 */
+  #cropOverlay{position:fixed;inset:0;z-index:60;cursor:crosshair;background:rgba(20,15,13,.5);user-select:none}
+  #cropInfo{position:fixed;top:18px;left:50%;transform:translateX(-50%);background:var(--peony);color:#fff;
+    padding:9px 18px;border-radius:999px;font-size:13.5px;font-weight:700;box-shadow:var(--shadow-lg);white-space:nowrap}
+  #cropBox{position:fixed;border:2px dashed #fff;background:rgba(255,255,255,.14);pointer-events:none;display:none;
+    box-shadow:0 0 0 9999px rgba(20,15,13,.28)}
+  #cropRegion{position:fixed;z-index:1;pointer-events:none;background:transparent;border-radius:8px}
 
   /* confetti canvas */
   #fx{position:fixed;inset:0;pointer-events:none;z-index:50}
@@ -195,6 +210,11 @@
 
 <div class="wrap">
   <canvas id="fx"></canvas>
+  <div id="cropRegion" hidden></div>
+  <div id="cropOverlay" hidden>
+    <div id="cropInfo">在畫面上拖曳選取要錄影的範圍（Esc 取消）</div>
+    <div id="cropBox"></div>
+  </div>
   <div class="container">
 
     <header class="masthead">
@@ -258,31 +278,37 @@
 
       <!-- 抽籤舞台 -->
       <section class="panel" aria-label="抽籤結果">
-        <div class="stage-head">
-          <span class="stage-title" id="stageTitle">抽籤舞台</span>
-          <span class="stage-meta" id="stageMeta"></span>
-        </div>
-
         <div class="recbar">
-          <button class="rec-btn" id="recBtn" type="button"><span class="rec-dot"></span>開始錄影</button>
-          <button class="rec-btn stop" id="recStop" type="button" hidden>■ 停止錄影</button>
-          <label class="rec-audio"><input type="checkbox" id="recAudio"> 含聲音</label>
-          <span class="rec-status" id="recStatus">可全程錄下抽籤過程，存成影片存證</span>
+          <div class="rec-mode">
+            <span class="rec-mode-lbl">錄影範圍</span>
+            <label><input type="radio" name="recMode" value="stage" checked> 只錄抽籤舞台</label>
+            <label><input type="radio" name="recMode" value="region"> 自訂矩形</label>
+          </div>
+          <div class="rec-actions">
+            <button class="rec-btn" id="recBtn" type="button"><span class="rec-dot"></span>開始錄影</button>
+            <button class="rec-btn stop" id="recStop" type="button" hidden>■ 停止錄影</button>
+            <label class="rec-audio"><input type="checkbox" id="recAudio"> 含聲音</label>
+          </div>
+          <span class="rec-status" id="recStatus">只會錄下右側抽籤舞台，左側名單不會入鏡</span>
         </div>
         <video id="recPreview" controls hidden></video>
 
-        <div class="cards" id="cards">
-          <div class="empty" id="emptyState">尚未抽籤 — 於左側完成設定後按「開始抽籤」。</div>
+        <div id="stageCapture">
+          <div class="stage-head">
+            <span class="stage-title" id="stageTitle">抽籤舞台</span>
+            <span class="stage-meta" id="stageMeta"></span>
+          </div>
+          <div class="cards" id="cards">
+            <div class="empty" id="emptyState">尚未抽籤 — 於左側完成設定後按「開始抽籤」。</div>
+          </div>
+          <div class="toolbar" id="toolbar" hidden>
+            <button class="tool primary" id="redraw" type="button">↻ 重新抽籤</button>
+            <button class="tool" id="copyTxt" type="button">複製文字結果</button>
+            <button class="tool" id="dlCsv" type="button">下載 CSV</button>
+          </div>
+          <div class="stamp" id="stamp" hidden></div>
+          <div class="legend" id="legend"></div>
         </div>
-
-        <div class="toolbar" id="toolbar" hidden>
-          <button class="tool primary" id="redraw" type="button">↻ 重新抽籤</button>
-          <button class="tool" id="copyTxt" type="button">複製文字結果</button>
-          <button class="tool" id="dlCsv" type="button">下載 CSV</button>
-        </div>
-        <div class="stamp" id="stamp" hidden></div>
-
-        <div class="legend" id="legend"></div>
         <p class="note">
           抽籤採 Fisher–Yates 洗牌演算法（優先使用瀏覽器 <code>crypto</code> 亂數），每次結果獨立且不可預測。
           名次順序僅供辨識，禮品分配與名次無關。建議現場投影並保留 CSV 作為存證。
@@ -654,8 +680,10 @@
     }catch(err){ info.hidden=false; info.innerHTML='<div class="import-err">匯入失敗：'+escapeHtml(err.message||String(err))+'</div>'; }
   }
 
-  /* ---------- 螢幕錄影（getDisplayMedia + MediaRecorder） ---------- */
-  var mediaRecorder=null, recChunks=[], recStream=null, recTimer=null, recSecs=0, recUrl=null;
+  /* ---------- 螢幕錄影（getDisplayMedia + Region Capture 裁切） ---------- */
+  var mediaRecorder=null, recChunks=[], recStream=null, recTimer=null, recSecs=0, recUrl=null, recCanvasCleanup=null;
+  var RC_SUPPORTED=!!(self.CropTarget && CropTarget.fromElement && window.MediaStreamTrack && MediaStreamTrack.prototype.cropTo);
+
   function pickMime(){
     var o=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
     for(var i=0;i<o.length;i++){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(o[i])) return o[i]; }
@@ -663,29 +691,105 @@
   }
   function fmt(s){ var m=Math.floor(s/60), ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
   function setRecStatus(t,live){ var s=$("#recStatus"); s.textContent=t; s.classList.toggle('live',!!live); }
-  async function startRec(){
+  function recMode(){ var r=document.querySelector('input[name=recMode]:checked'); return r?r.value:'stage'; }
+
+  // 拖曳選取矩形；完成後在同一手勢(mouseup)內以 rect 呼叫 cb
+  function pickRegionThen(cb){
+    var ov=$("#cropOverlay"), box=$("#cropBox"), sx=0, sy=0, active=false, done=false;
+    ov.hidden=false; box.style.display='none';
+    function upd(e){
+      var x=Math.min(sx,e.clientX), y=Math.min(sy,e.clientY), w=Math.abs(e.clientX-sx), h=Math.abs(e.clientY-sy);
+      box.style.left=x+'px'; box.style.top=y+'px'; box.style.width=w+'px'; box.style.height=h+'px';
+    }
+    function down(e){ active=true; sx=e.clientX; sy=e.clientY; box.style.display='block'; upd(e); e.preventDefault(); }
+    function move(e){ if(active) upd(e); }
+    function up(e){
+      if(!active||done) return; active=false; done=true;
+      var x=Math.min(sx,e.clientX), y=Math.min(sy,e.clientY), w=Math.abs(e.clientX-sx), h=Math.abs(e.clientY-sy);
+      cleanup();
+      if(w<24||h<24){ setRecStatus('選取範圍太小，已取消',false); cb(null); return; }
+      cb({x:x,y:y,w:w,h:h});
+    }
+    function key(e){ if(e.key==='Escape'&&!done){ done=true; cleanup(); setRecStatus('已取消選取',false); cb(null); } }
+    function cleanup(){ ov.hidden=true; box.style.display='none';
+      ov.removeEventListener('mousedown',down); window.removeEventListener('mousemove',move);
+      window.removeEventListener('mouseup',up); window.removeEventListener('keydown',key); }
+    ov.addEventListener('mousedown',down); window.addEventListener('mousemove',move);
+    window.addEventListener('mouseup',up); window.addEventListener('keydown',key);
+  }
+
+  function startRec(){
     if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder){
       setRecStatus('此瀏覽器不支援螢幕錄影（請用桌面版 Chrome / Edge）',true); return;
     }
-    try{ recStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:$("#recAudio").checked}); }
-    catch(e){ setRecStatus('已取消或未授權螢幕分享',false); return; }
+    if(recMode()==='region'){
+      pickRegionThen(function(rect){ if(rect) beginCapture(rect); });  // 在 mouseup 手勢內呼叫
+    }else{
+      beginCapture(null);
+    }
+  }
+
+  async function beginCapture(rect){
+    var stream;
+    try{
+      stream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:$("#recAudio").checked, preferCurrentTab:true});
+    }catch(e){ $("#cropRegion").hidden=true; setRecStatus('已取消或未授權螢幕分享',false); return; }
+    var track=stream.getVideoTracks()[0];
+
+    // 決定裁切目標元素
+    var targetEl;
+    if(recMode()==='region' && rect){
+      var cr=$("#cropRegion");
+      cr.style.left=rect.x+'px'; cr.style.top=rect.y+'px'; cr.style.width=rect.w+'px'; cr.style.height=rect.h+'px';
+      cr.hidden=false; targetEl=cr;
+    }else{ targetEl=$("#stageCapture"); }
+
+    var recordStream=stream; recCanvasCleanup=null;
+    if(RC_SUPPORTED){
+      try{ var ct=await CropTarget.fromElement(targetEl); await track.cropTo(ct); }
+      catch(e){ /* 裁切失敗則錄整個分頁 */ }
+    }else{
+      try{ var c=await setupCanvasCrop(stream, track, targetEl); recordStream=c.stream; recCanvasCleanup=c.cleanup; }
+      catch(e){ /* 退回錄整個分頁 */ }
+    }
+
     recChunks=[];
     var mime=pickMime();
-    try{ mediaRecorder=new MediaRecorder(recStream, mime?{mimeType:mime}:undefined); }
-    catch(e){ mediaRecorder=new MediaRecorder(recStream); }
+    try{ mediaRecorder=new MediaRecorder(recordStream, mime?{mimeType:mime}:undefined); }
+    catch(e){ mediaRecorder=new MediaRecorder(recordStream); }
+    recStream=stream;
     mediaRecorder.ondataavailable=function(e){ if(e.data&&e.data.size) recChunks.push(e.data); };
     mediaRecorder.onstop=finishRec;
     mediaRecorder.start();
-    recStream.getVideoTracks()[0].addEventListener('ended',stopRec);
+    track.addEventListener('ended',stopRec);   // 使用者從瀏覽器停止分享 → 停止錄影
     $("#recBtn").hidden=true; $("#recBtn").classList.add('live'); $("#recStop").hidden=false;
     var pv=$("#recPreview"); pv.hidden=true; pv.removeAttribute('src'); if(recUrl){URL.revokeObjectURL(recUrl);recUrl=null;}
     recSecs=0; setRecStatus('● 錄影中 00:00',true);
     recTimer=setInterval(function(){ recSecs++; setRecStatus('● 錄影中 '+fmt(recSecs),true); },1000);
   }
+
+  // 不支援 Region Capture 時：分享當前分頁 → 用 canvas 裁切目標矩形 → 錄 canvas
+  async function setupCanvasCrop(stream, track, targetEl){
+    var video=document.createElement('video'); video.muted=true; video.playsInline=true;
+    video.srcObject=new MediaStream([track]); await video.play();
+    var st=track.getSettings()||{}, vw=st.width||video.videoWidth, vh=st.height||video.videoHeight;
+    var sx=vw/window.innerWidth, sy=vh/window.innerHeight;
+    var r=targetEl.getBoundingClientRect();
+    var cx=r.left*sx, cy=r.top*sy, cw=r.width*sx, ch=r.height*sy;
+    var canvas=document.createElement('canvas'); canvas.width=Math.max(2,Math.round(cw)); canvas.height=Math.max(2,Math.round(ch));
+    var cctx=canvas.getContext('2d'), raf=0;
+    function draw(){ try{ cctx.drawImage(video, cx,cy,cw,ch, 0,0,canvas.width,canvas.height); }catch(e){} raf=requestAnimationFrame(draw); }
+    draw();
+    var cs=canvas.captureStream(30); var at=stream.getAudioTracks()[0]; if(at) cs.addTrack(at);
+    return {stream:cs, cleanup:function(){ cancelAnimationFrame(raf); try{video.pause();}catch(e){} video.srcObject=null; }};
+  }
+
   function stopRec(){
     if(recTimer){clearInterval(recTimer);recTimer=null;}
     if(mediaRecorder && mediaRecorder.state!=='inactive'){ try{mediaRecorder.stop();}catch(e){} }
+    if(recCanvasCleanup){ try{recCanvasCleanup();}catch(e){} recCanvasCleanup=null; }
     if(recStream){ recStream.getTracks().forEach(function(t){t.stop();}); recStream=null; }
+    $("#cropRegion").hidden=true;
     $("#recStop").hidden=true; $("#recBtn").hidden=false; $("#recBtn").classList.remove('live');
   }
   function finishRec(){
@@ -704,6 +808,14 @@
   $("#fileInput").addEventListener("change",function(e){ handleFile(e.target.files[0]); e.target.value=''; });
   $("#recBtn").addEventListener("click",startRec);
   $("#recStop").addEventListener("click",stopRec);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=recMode]'),function(r){
+    r.addEventListener('change',function(){
+      if(mediaRecorder && mediaRecorder.state==='recording') return;
+      setRecStatus(recMode()==='region'
+        ? '按「開始錄影」後，在畫面上拖曳選取要錄的範圍'
+        : '只會錄下右側抽籤舞台，左側名單不會入鏡', false);
+    });
+  });
   monthSel.addEventListener("change",applyMonth);
   $("#names").addEventListener("input",refreshTotals);
   $("#drawBtn").addEventListener("click",draw);
