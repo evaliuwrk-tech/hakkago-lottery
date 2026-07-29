@@ -156,6 +156,36 @@
   .note{font-size:12px;color:var(--ink-soft);margin-top:8px;line-height:1.7}
   .note code{background:var(--paper-2);padding:1px 5px;border-radius:4px;font-size:11.5px}
 
+  /* 匯入名單 */
+  .import{margin-bottom:12px}
+  .btn-import{width:100%;border:1px solid var(--jade);background:color-mix(in srgb,var(--jade) 10%,transparent);
+    color:var(--jade);border-radius:10px;padding:11px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer}
+  .btn-import:hover{background:color-mix(in srgb,var(--jade) 18%,transparent)}
+  .import-info{margin-top:10px;padding:11px 13px;background:var(--paper-2);border:1px solid var(--line);border-radius:10px;font-size:12.5px}
+  .import-info .fn{font-weight:700;color:var(--ink);word-break:break-all;margin-bottom:6px}
+  .import-info .cnt{color:var(--jade);font-weight:800}
+  .import-info label{color:var(--ink-soft)}
+  .import-info select{margin-top:4px}
+  .import-info .cbrow{display:flex;align-items:center;gap:6px;margin-top:9px;color:var(--ink-soft)}
+  .import-info .cbrow input{width:auto}
+  .import-err{color:var(--peony);font-weight:600}
+
+  /* 螢幕錄影 */
+  .recbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px;padding:10px 13px;
+    background:var(--paper-2);border:1px solid var(--line);border-radius:10px}
+  .rec-btn{border:1px solid var(--peony);background:transparent;color:var(--peony);border-radius:8px;
+    padding:7px 13px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  .rec-btn:hover{background:color-mix(in srgb,var(--peony) 10%,transparent)}
+  .rec-btn.stop{border-color:var(--ink-soft);color:var(--ink)}
+  .rec-dot{width:9px;height:9px;border-radius:50%;background:var(--peony);flex:none}
+  .rec-btn.live .rec-dot{animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:.2}}
+  .rec-audio{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-soft);cursor:pointer}
+  .rec-status{margin-left:auto;font-size:12px;color:var(--ink-soft);font-variant-numeric:tabular-nums;text-align:right}
+  .rec-status.live{color:var(--peony);font-weight:700}
+  #recPreview{width:100%;border-radius:10px;margin-bottom:14px;background:#000;max-height:340px;display:block}
+  @media (prefers-reduced-motion:reduce){.rec-btn.live .rec-dot{animation:none}}
+
   /* confetti canvas */
   #fx{position:fixed;inset:0;pointer-events:none;z-index:50}
   @media (prefers-reduced-motion:reduce){
@@ -201,9 +231,14 @@
         </label>
 
         <h2 style="margin-top:6px">2 · 得獎名單</h2>
+        <div class="import">
+          <input type="file" id="fileInput" accept=".xlsx,.csv" hidden>
+          <button class="btn-import" id="importBtn" type="button">⬆ 匯入 Excel（.xlsx）／ CSV 名單</button>
+          <div class="import-info" id="importInfo" hidden></div>
+        </div>
         <label class="field">
-          <span>依名次貼上得獎者，每行一位（名次 1 → 10）</span>
-          <textarea id="names" placeholder="第1名 王小明&#10;第2名 陳__&#10;……（共 10 位，可貼帳號或暱稱）"></textarea>
+          <span>得獎者名單（每行一位；可由上方匯入，或直接貼上／編輯）</span>
+          <textarea id="names" placeholder="王小明&#10;陳美玲&#10;……（共 10 位，可貼帳號或暱稱）"></textarea>
         </label>
         <div class="row-mini">
           <button class="btn-mini" id="fillDemo" type="button">填入示範名單</button>
@@ -227,6 +262,15 @@
           <span class="stage-title" id="stageTitle">抽籤舞台</span>
           <span class="stage-meta" id="stageMeta"></span>
         </div>
+
+        <div class="recbar">
+          <button class="rec-btn" id="recBtn" type="button"><span class="rec-dot"></span>開始錄影</button>
+          <button class="rec-btn stop" id="recStop" type="button" hidden>■ 停止錄影</button>
+          <label class="rec-audio"><input type="checkbox" id="recAudio"> 含聲音</label>
+          <span class="rec-status" id="recStatus">可全程錄下抽籤過程，存成影片存證</span>
+        </div>
+        <video id="recPreview" controls hidden></video>
+
         <div class="cards" id="cards">
           <div class="empty" id="emptyState">尚未抽籤 — 於左側完成設定後按「開始抽籤」。</div>
         </div>
@@ -495,7 +539,171 @@
     if(parts.length){raf=requestAnimationFrame(tick);}else{ctx.clearRect(0,0,cvs.width,cvs.height);raf=null;}
   }
 
+  /* ---------- 名單匯入（Excel .xlsx / .csv，純前端、無外部相依） ---------- */
+  var importedRows=null;
+
+  function colLetterToIndex(letters){
+    var n=0; for(var i=0;i<letters.length;i++){ n=n*26+(letters.charCodeAt(i)-64); } return n-1;
+  }
+  async function inflateRaw(bytes){
+    var ds=new DecompressionStream('deflate-raw');
+    var stream=new Blob([bytes]).stream().pipeThrough(ds);
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+  async function readZip(buf){
+    var dv=new DataView(buf), u8=new Uint8Array(buf), eocd=-1;
+    for(var i=buf.byteLength-22;i>=0;i--){ if(dv.getUint32(i,true)===0x06054b50){ eocd=i; break; } }
+    if(eocd<0) throw new Error('非有效的 xlsx 檔（找不到 ZIP 結尾）');
+    var cd=dv.getUint32(eocd+16,true), count=dv.getUint16(eocd+10,true), entries={}, p=cd;
+    for(var e=0;e<count;e++){
+      if(dv.getUint32(p,true)!==0x02014b50) break;
+      var method=dv.getUint16(p+10,true), compSize=dv.getUint32(p+20,true),
+          fnLen=dv.getUint16(p+28,true), exLen=dv.getUint16(p+30,true),
+          cmLen=dv.getUint16(p+32,true), lho=dv.getUint32(p+42,true),
+          name=new TextDecoder().decode(u8.subarray(p+46,p+46+fnLen));
+      entries[name]={method:method,compSize:compSize,lho:lho};
+      p+=46+fnLen+exLen+cmLen;
+    }
+    async function read(name){
+      var en=entries[name]; if(!en) return null;
+      var lf=dv.getUint16(en.lho+26,true), le=dv.getUint16(en.lho+28,true), ds=en.lho+30+lf+le;
+      var raw=u8.subarray(ds, ds+en.compSize);
+      return en.method===0 ? raw : await inflateRaw(raw);
+    }
+    return {names:Object.keys(entries), read:read};
+  }
+  async function parseXlsx(buf){
+    if(typeof DecompressionStream==='undefined') throw new Error('此瀏覽器不支援解壓 xlsx，請改用 CSV 或桌面版 Chrome/Edge');
+    var zip=await readZip(buf), dec=new TextDecoder(), shared=[];
+    var ss=await zip.read('xl/sharedStrings.xml');
+    if(ss){
+      var sd=new DOMParser().parseFromString(dec.decode(ss),'application/xml'), sis=sd.getElementsByTagName('si');
+      for(var i=0;i<sis.length;i++){ var ts=sis[i].getElementsByTagName('t'), s=''; for(var j=0;j<ts.length;j++) s+=ts[j].textContent; shared.push(s); }
+    }
+    var sheet=zip.names.filter(function(n){return /^xl\/worksheets\/sheet\d+\.xml$/.test(n);})
+      .sort(function(a,b){return (+a.match(/(\d+)/)[1])-(+b.match(/(\d+)/)[1]);})[0];
+    if(!sheet) throw new Error('找不到工作表');
+    var doc=new DOMParser().parseFromString(dec.decode(await zip.read(sheet)),'application/xml');
+    var rows=doc.getElementsByTagName('row'), grid=[], maxCol=0;
+    for(var r=0;r<rows.length;r++){
+      var cs=rows[r].getElementsByTagName('c'), arr=[];
+      for(var c=0;c<cs.length;c++){
+        var cell=cs[c], ref=cell.getAttribute('r')||'', t=cell.getAttribute('t'),
+            letters=ref.replace(/[0-9]/g,''), ci=letters?colLetterToIndex(letters):arr.length, val='';
+        if(t==='s'){ var v=cell.getElementsByTagName('v')[0]; if(v) val=shared[+v.textContent]||''; }
+        else if(t==='inlineStr'){ var it=cell.getElementsByTagName('t'); for(var k=0;k<it.length;k++) val+=it[k].textContent; }
+        else { var v2=cell.getElementsByTagName('v')[0]; if(v2) val=v2.textContent; }
+        arr[ci]=val; if(ci+1>maxCol) maxCol=ci+1;
+      }
+      grid.push(arr);
+    }
+    return grid.map(function(row){ var o=[]; for(var i=0;i<maxCol;i++) o.push((row[i]!=null?String(row[i]):'').trim()); return o; });
+  }
+  function parseCsv(text){
+    var rows=[], row=[], cur='', inQ=false;
+    text=text.replace(/^﻿/,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+    for(var i=0;i<text.length;i++){
+      var ch=text[i];
+      if(inQ){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; } else cur+=ch; }
+      else{ if(ch==='"') inQ=true; else if(ch===',') {row.push(cur);cur='';} else if(ch==='\n'){row.push(cur);rows.push(row);row=[];cur='';} else cur+=ch; }
+    }
+    if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+    return rows.map(function(r){return r.map(function(c){return c.trim();});});
+  }
+
+  var HEADER_HINT=/(姓名|名字|得獎|名單|帳號|暱稱|會員|昵稱|name|member|user|nick)/i;
+  function looksLikeHeader(rows){
+    if(!rows.length) return false;
+    if(rows[0].some(function(c){return HEADER_HINT.test(c);})) return true;
+    return rows.length>1 && rows[0].every(function(c){return c!=='' && isNaN(+c);});
+  }
+  function bestNameCol(rows,hasHeader){
+    var cols=rows[0]?rows[0].length:0, start=hasHeader?1:0;
+    if(hasHeader){ for(var c=0;c<cols;c++){ if(HEADER_HINT.test(rows[0][c]||'')) return c; } }
+    var best=0,bs=-1;
+    for(var c2=0;c2<cols;c2++){ var sc=0; for(var r=start;r<rows.length;r++){ var v=rows[r][c2]||''; if(v && isNaN(+v)) sc++; } if(sc>bs){bs=sc;best=c2;} }
+    return best;
+  }
+  function renderImportInfo(fileName){
+    var info=$("#importInfo"); info.hidden=false;
+    var rows=importedRows||[];
+    if(!rows.length){ info.innerHTML='<div class="import-err">檔案沒有可用資料</div>'; return; }
+    var hasHeader=looksLikeHeader(rows), cols=rows[0].length, opts='';
+    for(var c=0;c<cols;c++){ var h=hasHeader?(rows[0][c]||('第'+(c+1)+'欄')):('第'+(c+1)+'欄'); opts+='<option value="'+c+'">'+escapeHtml(h)+'</option>'; }
+    info.innerHTML='<div class="fn">📄 '+escapeHtml(fileName)+'</div>'
+      +'<label>姓名欄位：<select id="nameCol">'+opts+'</select></label>'
+      +'<div class="cbrow"><input type="checkbox" id="hasHeader" '+(hasHeader?'checked':'')+'><label for="hasHeader">第一列為標題（略過）</label></div>'
+      +'<div style="margin-top:8px">已匯入 <span class="cnt" id="impCnt">0</span> 位得獎者</div>';
+    var sel=$("#nameCol"); sel.value=String(bestNameCol(rows,hasHeader));
+    function apply(){
+      var col=+sel.value, skip=$("#hasHeader").checked?1:0, out=[];
+      for(var r=skip;r<rows.length;r++){ var v=(rows[r][col]||'').trim(); if(v) out.push(v); }
+      $("#names").value=out.join("\n"); $("#impCnt").textContent=out.length; refreshTotals();
+    }
+    sel.addEventListener('change',apply); $("#hasHeader").addEventListener('change',apply); apply();
+  }
+  async function handleFile(file){
+    if(!file) return;
+    var info=$("#importInfo");
+    try{
+      var nm=file.name.toLowerCase();
+      if(nm.endsWith('.csv')) importedRows=parseCsv(await file.text());
+      else importedRows=await parseXlsx(await file.arrayBuffer());
+      importedRows=importedRows.filter(function(r){return r.some(function(c){return c&&c.trim();});});
+      renderImportInfo(file.name);
+    }catch(err){ info.hidden=false; info.innerHTML='<div class="import-err">匯入失敗：'+escapeHtml(err.message||String(err))+'</div>'; }
+  }
+
+  /* ---------- 螢幕錄影（getDisplayMedia + MediaRecorder） ---------- */
+  var mediaRecorder=null, recChunks=[], recStream=null, recTimer=null, recSecs=0, recUrl=null;
+  function pickMime(){
+    var o=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4'];
+    for(var i=0;i<o.length;i++){ if(window.MediaRecorder && MediaRecorder.isTypeSupported(o[i])) return o[i]; }
+    return '';
+  }
+  function fmt(s){ var m=Math.floor(s/60), ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+  function setRecStatus(t,live){ var s=$("#recStatus"); s.textContent=t; s.classList.toggle('live',!!live); }
+  async function startRec(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder){
+      setRecStatus('此瀏覽器不支援螢幕錄影（請用桌面版 Chrome / Edge）',true); return;
+    }
+    try{ recStream=await navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:$("#recAudio").checked}); }
+    catch(e){ setRecStatus('已取消或未授權螢幕分享',false); return; }
+    recChunks=[];
+    var mime=pickMime();
+    try{ mediaRecorder=new MediaRecorder(recStream, mime?{mimeType:mime}:undefined); }
+    catch(e){ mediaRecorder=new MediaRecorder(recStream); }
+    mediaRecorder.ondataavailable=function(e){ if(e.data&&e.data.size) recChunks.push(e.data); };
+    mediaRecorder.onstop=finishRec;
+    mediaRecorder.start();
+    recStream.getVideoTracks()[0].addEventListener('ended',stopRec);
+    $("#recBtn").hidden=true; $("#recBtn").classList.add('live'); $("#recStop").hidden=false;
+    var pv=$("#recPreview"); pv.hidden=true; pv.removeAttribute('src'); if(recUrl){URL.revokeObjectURL(recUrl);recUrl=null;}
+    recSecs=0; setRecStatus('● 錄影中 00:00',true);
+    recTimer=setInterval(function(){ recSecs++; setRecStatus('● 錄影中 '+fmt(recSecs),true); },1000);
+  }
+  function stopRec(){
+    if(recTimer){clearInterval(recTimer);recTimer=null;}
+    if(mediaRecorder && mediaRecorder.state!=='inactive'){ try{mediaRecorder.stop();}catch(e){} }
+    if(recStream){ recStream.getTracks().forEach(function(t){t.stop();}); recStream=null; }
+    $("#recStop").hidden=true; $("#recBtn").hidden=false; $("#recBtn").classList.remove('live');
+  }
+  function finishRec(){
+    if(!recChunks.length){ setRecStatus('未擷取到畫面',true); return; }
+    var type=recChunks[0].type||'video/webm', blob=new Blob(recChunks,{type:type});
+    recUrl=URL.createObjectURL(blob);
+    var ext=type.indexOf('mp4')>=0?'mp4':'webm', mo=MONTHS[+monthSel.value];
+    var fn='HakkaGo抽籤錄影_第'+mo.idx+'場_'+stampNow().replace(/[\/: ]/g,'-')+'.'+ext;
+    var a=document.createElement('a'); a.href=recUrl; a.download=fn; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    var pv=$("#recPreview"); pv.src=recUrl; pv.hidden=false;
+    setRecStatus('✓ 已存檔（'+fmt(recSecs)+'）',false);
+  }
+
   /* ---------- 事件 ---------- */
+  $("#importBtn").addEventListener("click",function(){$("#fileInput").click();});
+  $("#fileInput").addEventListener("change",function(e){ handleFile(e.target.files[0]); e.target.value=''; });
+  $("#recBtn").addEventListener("click",startRec);
+  $("#recStop").addEventListener("click",stopRec);
   monthSel.addEventListener("change",applyMonth);
   $("#names").addEventListener("input",refreshTotals);
   $("#drawBtn").addEventListener("click",draw);
